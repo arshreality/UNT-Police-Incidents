@@ -1,5 +1,5 @@
 import plotly.graph_objs as go
-
+import geopandas as gpd
 import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
@@ -32,6 +32,18 @@ def update_figures():
     num_inc_df = pd.read_csv('num_inc.csv')
     fig = go.Figure(data=go.Scatter(x=list(num_inc_df['Date']), y=list(num_inc_df['Num'])))
 
+    return fig
+
+def map_figure():
+    df = pd.read_csv('incidents.csv')
+
+    geo_df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Longitude, df.Latitude))
+
+    px.set_mapbox_access_token(open(".mapbox_token").read())
+    fig = px.scatter_geo(geo_df,
+                        lat=geo_df.geometry.y,
+                        lon=geo_df.geometry.x,
+                        hover_name="Nature")
     return fig
 
 # Card components
@@ -73,7 +85,7 @@ graphs = [
             value=['heelo'],
             label="Filter Features",
         ),
-        dcc.Graph(id="graph-coef"),
+        dcc.Graph(figure=map_figure()),
     ],
     [
         LabeledSelect(
