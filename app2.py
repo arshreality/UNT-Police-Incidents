@@ -1,3 +1,5 @@
+import plotly.graph_objs as go
+
 import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
@@ -26,6 +28,11 @@ server = app.server
 train_acc = 0.2
 test_acc = 0.3
 
+def update_figures():
+    num_inc_df = pd.read_csv('num_inc.csv')
+    fig = go.Figure(data=go.Scatter(x=list(num_inc_df['Date']), y=list(num_inc_df['Num'])))
+
+    return fig
 
 # Card components
 cards = [
@@ -75,7 +82,7 @@ graphs = [
             value=['heelo'],
             label="Visualize GAM",
         ),
-        dcc.Graph("graph-gam"),
+        dcc.Graph(figure=update_figures()),
     ],
 ]
 
@@ -90,42 +97,6 @@ app.layout = dbc.Container(
     fluid=False,
 )
 
-
-@app.callback(
-    [Output("graph-gam", "figure"), Output("graph-coef", "figure")],
-    [Input("select-gam", "value"), Input("select-coef", "value")],
-)
-def update_figures(gam_col, coef_col):
-
-    # Filter based on chosen column
-    xdf_filt = xdf[xdf.rule.str.contains(coef_col)].copy()
-    xdf_filt["desc"] = "<br>" + xdf_filt.rule.str.replace("AND ", "AND<br>")
-    xdf_filt["condition"] = [
-        [r for r in r.split(" AND ") if coef_col in r][0] for r in xdf_filt.rule
-    ]
-
-    coef_fig = px.bar(
-        xdf_filt,
-        x="desc",
-        y="coefficient",
-        color="condition",
-        title="Rules Explanations",
-    )
-    coef_fig.update_xaxes(showticklabels=False)
-
-    if plotLine[gam_col]:
-        plot_fn = px.line
-    else:
-        plot_fn = px.bar
-
-    gam_fig = plot_fn(
-        x=xPlot[gam_col],
-        y=yPlot[gam_col],
-        title="Generalized additive model component",
-        labels={"x": gam_col, "y": "contribution to log-odds of Y=1"},
-    )
-
-    return gam_fig, coef_fig
 
 
 if __name__ == "__main__":
