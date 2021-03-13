@@ -143,4 +143,3 @@ for abb, word in abb_dict.items():
 # 
 
 print(df['Case'])
-df.to_csv('incidents.csv')
