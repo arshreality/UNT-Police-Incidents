@@ -9,7 +9,7 @@ import requests
 import pandas as pd
 
 # create empty dataframe with columns
-columns = ['Nature', 'Case', 'Reported', 'Occurred', 'Location', 'Disposition', 'Info', 'Distance']
+columns = ['Nature', 'Case', 'Reported', 'Occurred', 'Location', 'Disposition', 'Distance', 'Latitude', 'Longitude']
 
 df = pd.DataFrame(columns=columns)
 
@@ -27,12 +27,10 @@ def get_incidents():
       
     # printing number of pages in pdf file 
     numOfPages = (pdfReader.numPages) 
-    print(numOfPages)
     
     all_words = []
 
     for page in range(numOfPages):
-      print(page)
       # creating a page object 
       pageObj = pdfReader.getPage(page) 
         
@@ -54,13 +52,13 @@ def get_incidents():
     string_arr = []
     locator = Nominatim(user_agent="myGeocoder")
     
-    j = 0
     for word in all_words:
-        # if j == 5:
-        #     break
+        if word == '':
+          continue
+
         string_arr.append(word)
-        if "     " in word and len(string_arr) == 7:
-            print(string_arr)
+        print(string_arr)
+        if len(string_arr) == 6:
             temp = "{} was filed with the case number {} was reported on {} at {}. The disposition was {}. ".format(string_arr[0], string_arr[1], string_arr[2], string_arr[4], string_arr[5])
             location = locator.geocode(string_arr[4])
             if location is not None:
@@ -71,16 +69,26 @@ def get_incidents():
                 if distance < 0.5:
                     temp += " Since the incident is less than half a mile away, you might want to take appropriate precautions. "
             else:
-              distance = -1
+              index = string_arr[4].index(",")
+              location = locator.geocode(string_arr[4][index + 2:])
+              if location is not None:
+                loc1 = (location.latitude, location.longitude)
+                loc2 = (33.212031, -97.151035)
+                distance = hs.haversine(loc1, loc2 ,unit=Unit.MILES)
+              else:
+                distance  = -1
+                loc1 = (-1,-1)
             
             final_arr.append(temp)
             string_arr.append(distance)
+            string_arr.append(loc1[0])
+            string_arr.append(loc1[1])
             df.loc[len(df)] = string_arr
             string_arr.clear()
-            j += 1
+            print()
             continue
         
-        if "     " in word and len(string_arr) != 7:
+        if "     " in word:
             string_arr.clear()
             continue
         
@@ -129,7 +137,7 @@ abb_dict = {
   "W/":"With"
 }
 incidents = get_incidents()
-# print(incidents)
+print(incidents)
 speak_output = ''
 for item in incidents:
     speak_output += item + " And the next one. "
@@ -143,3 +151,5 @@ for abb, word in abb_dict.items():
 # 
 
 print(df['Case'])
+
+df.to_csv('incidents.csv')
