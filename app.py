@@ -7,7 +7,7 @@ from dash.dependencies import Input, Output
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-import geocoder
+import numpy as np
 
 def Header(name, app):
     title = html.H2(name, style={"margin-top": 15})
@@ -17,19 +17,14 @@ def Header(name, app):
 
     return dbc.Row([dbc.Col(title, md=9), dbc.Col(logo, md=3)])
 
-
-def LabeledSelect(label, **kwargs):
-    return dbc.FormGroup([dbc.Label(label), dbc.Select(**kwargs)])
-
-
 # Start the app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
-train_acc = 0.2
-test_acc = 0.3
-df = pd.read_csv('incidents.csv')
-total_cases = len(df.index)
+
+incident_df = pd.read_csv('incidents.csv')
+incident_df = incident_df[incident_df.Distance != -1]
+incident_df = incident_df[incident_df.Distance <= 2]
 
 def update_figures():
     num_inc_df = pd.read_csv('num_inc.csv')
@@ -51,27 +46,13 @@ def update_figures():
 
     return fig
 
-def SetColor(x):
-        if(x == 'My Location'):
-            print(x, flush=True)
-            return "steelblue"
-        else:
-            return "palegoldenrod"
-
-def map_figure(df, hover_data, color):
-    g = geocoder.ip('me')   
+def map_figure(df, hover_data, map_type):
     
-    if color == "blue":
-        fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_data=hover_data, color_discrete_sequence=[color], zoom=12, height=300, size = "Number of Emergency Phones")
+    if map_type == "Emergency Phones":
+        fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_data=hover_data, color_discrete_sequence=["blue"], zoom=12, height=300, size = "Number of Emergency Phones")
     else:
-        # df['color'] = ["blue"] * (len(df))
-        arr = ["My Location", 0, 0, 0, 0, 0, 0, g.latlng[0], g.latlng[1], 0, 0]
-        a_series = pd.Series(arr, index = df.columns)
-        df = df.append(a_series, ignore_index=True)
-        print(df, flush=True)
-
-        # print(df.color,flush=True)
-        fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_data=hover_data, color_discrete_sequence=list(map(SetColor, df['Nature'])), zoom=12, height=300)
+        fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_data=hover_data, color_discrete_sequence=["red"], zoom=12, height=300)
+   
     fig.update_layout(mapbox_style="open-street-map")
     fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 
@@ -90,7 +71,6 @@ def donut():
     
     values = list(freq.values())
 
-    # Use `hole` to create a donut-like pie chart
     fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
     fig.update_layout(
      title={
@@ -104,39 +84,67 @@ def donut():
         color="black"))
     
     return fig
+
+def histogram():
+    freq = {}
+    arr = list(incident_df['Nature'])
+    for items in arr: 
+        freq[items] = arr.count(items)
+
+    fig = {
+        "data": [
+            {
+                "type": "bar",
+                "x": list(freq.values()),
+                "y": list(freq.keys()),
+                "marker": {"color": "red"},
+                "orientation": "h",
+                "selected": {"marker": {"opacity": 1, "color": "red"}},
+                "unselected": {"marker": {"opacity": 1, "color": "black"}},
+                "showlegend": False,
+            },
+        ],
+        "layout": {
+            "barmode": "overlay",
+            "selectdirection": "v",
+            "clickmode": "event+select",
+            "selectionrevision": True,
+            "height": 600,
+            "margin": {"l": 10, "r": 80, "t": 10, "b": 10},
+            "xaxis": {
+                "title": {"text": "Count"},
+                "automargin": True,
+            },
+            "yaxis": {
+                "type": "category",
+                "categoryorder": "array",
+                "categoryarray": list(freq.keys()),
+                "side": "left",
+                "automargin": True,
+            },
+        },
+    }
+
+    return fig
+
 # Card components
 cards = [
     dbc.Card(
         [
-            html.H2(f"{total_cases}", className="card-title"),
-            html.P("Total Incidents in last 60 days", className="card-text"),
-        ],
-        body=True,
-        color="light",
-    ),
-    dbc.Card(
-        [
-            html.H2(f"{test_acc*100:.2f}%", className="card-title"),
-            html.P("Model Test Accuracy", className="card-text"),
+            html.H2(id="number_of_incidents"),
+            html.P(id="incident-card-text"),
         ],
         body=True,
         color="dark",
         inverse=True,
-    ),
-    dbc.Card(
-        [
-            html.H2("YEET", className="card-title"),
-            html.P("Train / Test Split", className="card-text"),
-        ],
-        body=True,
-        color="primary",
-        inverse=True,
+        
     ),
 ]
 
 # Graph components
 graphs = [
     [
+        dcc.Graph(id="map-figure-id"),
         dcc.RadioItems(
             id="checklist",
             options=[{"label": x, "value": x} 
@@ -144,18 +152,15 @@ graphs = [
             value="Incidents",
             labelStyle={'display': 'inline-block'}
         ),
-        dcc.Graph(id="map-figure-id"),
     ],
     [
-        # LabeledSelect(
-        #     id="select-gam",
-        #     options=[{"label": "col_map[k]", "value": "k"}],
-        #     value=['heelo'],
-        #     label="Visualize GAM",
-        # ),
         dcc.Graph(figure=update_figures()),
     ],
-    dcc.Graph(figure=donut())
+    dcc.Graph(figure=donut()),
+    dcc.Graph(
+        id="radio-histogram",
+        figure=histogram(),
+    ),
 ]
 
 app.layout = dbc.Container(
@@ -164,8 +169,9 @@ app.layout = dbc.Container(
         html.Hr(),
         dbc.Row([dbc.Col(card) for card in cards]),
         html.Br(),
-        # dbc.Row([dbc.Col(graph) for graph in graphs]),
         dbc.Row([dbc.Col(graphs[0])]),
+        html.Br(),
+        dbc.Row([dbc.Col(graphs[3])]),
         html.Br(),
         dbc.Row([dbc.Col(graphs[1]), dbc.Col(graphs[2])]),
     ],
@@ -173,22 +179,31 @@ app.layout = dbc.Container(
 )
 
 @app.callback(
-    Output("map-figure-id", "figure"), 
-    [Input("checklist", "value")])
-def update_map(map_type):
-    if map_type == "Emergency Phones":
-        df = pd.read_csv('emergency_phones.csv')
-        hover_data = ["Name", "Number of Emergency Phones"]
-        color = "blue"
-
-    elif map_type == "Incidents":
-        df = pd.read_csv('incidents.csv')
-        df = df[df.Distance != -1]
-        df = df[df.Distance <= 2]
+    [Output("number_of_incidents", "children"), Output("incident-card-text", "children"), Output("map-figure-id", "figure")],
+    [Input("radio-histogram", "selectedData"), Input("checklist", "value")]
+)
+def update_number(selectedData, map_type):
+    if selectedData is None and map_type == "Incidents":
         hover_data = ["Nature", "Case", "Reported"]
-        color = "red"
+        n_selected = len(incident_df)
+        incident_chosen = "Total Number of Incidents in 60 Days"
+        fig = map_figure(incident_df, hover_data, "Incidents")
     
-    return map_figure(df, hover_data, color)
+    elif selectedData is not None and map_type == "Incidents":
+        hover_data = ["Nature", "Case", "Reported"]
+        temp_df = incident_df[incident_df['Nature'] == selectedData['points'][0]['label']]
+        n_selected = len(temp_df)
+        incident_chosen = "Number of {}".format(selectedData['points'][0]['label']).title()
+        fig = map_figure(temp_df, hover_data, "Incidents")
 
+    elif map_type == "Emergency Phones":
+        hover_data = ["Name", "Number of Emergency Phones"]
+        df = pd.read_csv('emergency_phones.csv')
+        n_selected = df['Number of Emergency Phones'].sum()
+        incident_chosen = "Total Number of Emergency Phones on Campus"
+        fig = map_figure(df, hover_data, "Emergency Phones")
+
+
+    return (n_selected,  incident_chosen, fig)
 if __name__ == "__main__":
     app.run_server(debug=True)
