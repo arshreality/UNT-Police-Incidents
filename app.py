@@ -51,20 +51,27 @@ def update_figures():
 
     return fig
 
+def SetColor(x):
+        if(x == 'My Location'):
+            print(x, flush=True)
+            return "steelblue"
+        else:
+            return "palegoldenrod"
+
 def map_figure(df, hover_data, color):
-    g = geocoder.ip('me')
-    print(g.latlng)
-    
+    g = geocoder.ip('me')   
     
     if color == "blue":
         fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_data=hover_data, color_discrete_sequence=[color], zoom=12, height=300, size = "Number of Emergency Phones")
     else:
-        colors = ["red"] * (len(df.index))
-        df['color']  = colors
-        df.loc[len(df)] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, g.latlng[0], g.latlng[1], 0, "blue"]
-        print(df.keys())
-        
-        fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_data=hover_data, color_discrete_sequence=df['color'], zoom=12, height=300)
+        # df['color'] = ["blue"] * (len(df))
+        arr = ["My Location", 0, 0, 0, 0, 0, 0, g.latlng[0], g.latlng[1], 0, 0]
+        a_series = pd.Series(arr, index = df.columns)
+        df = df.append(a_series, ignore_index=True)
+        print(df, flush=True)
+
+        # print(df.color,flush=True)
+        fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_data=hover_data, color_discrete_sequence=list(map(SetColor, df['Nature'])), zoom=12, height=300)
     fig.update_layout(mapbox_style="open-street-map")
     fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 
@@ -178,7 +185,7 @@ def update_map(map_type):
         df = pd.read_csv('incidents.csv')
         df = df[df.Distance != -1]
         df = df[df.Distance <= 2]
-        hover_data = ["Case", "Reported"]
+        hover_data = ["Nature", "Case", "Reported"]
         color = "red"
     
     return map_figure(df, hover_data, color)
