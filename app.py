@@ -7,11 +7,12 @@ from dash.dependencies import Input, Output
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
+import geocoder
 
 def Header(name, app):
-    title = html.H2(name, style={"margin-top": 5})
+    title = html.H2(name, style={"margin-top": 15})
     logo = html.Img(
-        src=app.get_asset_url("logo.png"), style={"float": "right", "height": 50}
+        src=app.get_asset_url("logo.png"), style={"float": "right", "height": 50, "margin-top": 15}
     )
 
     return dbc.Row([dbc.Col(title, md=9), dbc.Col(logo, md=3)])
@@ -27,6 +28,8 @@ server = app.server
 
 train_acc = 0.2
 test_acc = 0.3
+df = pd.read_csv('incidents.csv')
+total_cases = len(df.index)
 
 def update_figures():
     num_inc_df = pd.read_csv('num_inc.csv')
@@ -49,10 +52,19 @@ def update_figures():
     return fig
 
 def map_figure(df, hover_data, color):
+    g = geocoder.ip('me')
+    print(g.latlng)
+    
+    
     if color == "blue":
         fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_data=hover_data, color_discrete_sequence=[color], zoom=12, height=300, size = "Number of Emergency Phones")
     else:
-        fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_data=hover_data, color_discrete_sequence=[color], zoom=12, height=300)
+        colors = ["red"] * (len(df.index))
+        df['color']  = colors
+        df.loc[len(df)] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, g.latlng[0], g.latlng[1], 0, "blue"]
+        print(df.keys())
+        
+        fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_data=hover_data, color_discrete_sequence=df['color'], zoom=12, height=300)
     fig.update_layout(mapbox_style="open-street-map")
     fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 
@@ -73,14 +85,24 @@ def donut():
 
     # Use `hole` to create a donut-like pie chart
     fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
+    fig.update_layout(
+     title={
+        'text': "Time of Incidents",
+        'y':0.9,
+        'x':0.5,
+        'xanchor': 'center',
+        'yanchor': 'top'},
+    font=dict(
+        size=14,
+        color="black"))
     
     return fig
 # Card components
 cards = [
     dbc.Card(
         [
-            html.H2(f"{train_acc*100:.2f}%", className="card-title"),
-            html.P("Model Training Accuracy", className="card-text"),
+            html.H2(f"{total_cases}", className="card-title"),
+            html.P("Total Incidents in last 60 days", className="card-text"),
         ],
         body=True,
         color="light",
@@ -118,12 +140,12 @@ graphs = [
         dcc.Graph(id="map-figure-id"),
     ],
     [
-        LabeledSelect(
-            id="select-gam",
-            options=[{"label": "col_map[k]", "value": "k"}],
-            value=['heelo'],
-            label="Visualize GAM",
-        ),
+        # LabeledSelect(
+        #     id="select-gam",
+        #     options=[{"label": "col_map[k]", "value": "k"}],
+        #     value=['heelo'],
+        #     label="Visualize GAM",
+        # ),
         dcc.Graph(figure=update_figures()),
     ],
     dcc.Graph(figure=donut())
@@ -135,7 +157,10 @@ app.layout = dbc.Container(
         html.Hr(),
         dbc.Row([dbc.Col(card) for card in cards]),
         html.Br(),
-        dbc.Row([dbc.Col(graph) for graph in graphs]),
+        # dbc.Row([dbc.Col(graph) for graph in graphs]),
+        dbc.Row([dbc.Col(graphs[0])]),
+        html.Br(),
+        dbc.Row([dbc.Col(graphs[1]), dbc.Col(graphs[2])]),
     ],
     fluid=False,
 )
