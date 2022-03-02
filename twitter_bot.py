@@ -7,8 +7,7 @@ import time
 
 with open("twitter_credentials.json", "r") as file:
     creds = json.load(file)
-# Fill the X's with the credentials obtained by 
-# following the above mentioned procedure. 
+
 CONSUMER_KEY = creds["CONSUMER_KEY"]
 CONSUMER_SECRET = creds["CONSUMER_SECRET"]
 ACCESS_KEY = creds["ACCESS_TOKEN"]
