@@ -50,7 +50,7 @@ def tweet(df, date):
         except tweepy.TweepError as error:
             print(error)
 
-df = pd.read_csv('incidents_speech.csv')
+df = pd.read_csv('./data/incidents_speech.csv')
 date = 23
 
 while True:

@@ -22,12 +22,12 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
 
-incident_df = pd.read_csv('incidents.csv')
+incident_df = pd.read_csv('./data/incidents.csv')
 incident_df = incident_df[incident_df.Distance != -1]
 incident_df = incident_df[incident_df.Distance <= 2]
 
 def update_figures():
-    num_inc_df = pd.read_csv('num_inc.csv')
+    num_inc_df = pd.read_csv('./data/num_inc.csv')
     dates = list(num_inc_df['Date'])
     datetimes = sorted([datetime.strptime(x, '%m/%d/%Y') for x in dates])
     fig = go.Figure(data=go.Scatter(x=datetimes, y=list(num_inc_df['Num']), mode='lines+markers'))
@@ -59,7 +59,7 @@ def map_figure(df, hover_data, map_type):
     return fig
 
 def donut():
-    df = pd.read_csv('incidents.csv')
+    df = pd.read_csv('./data/incidents.csv')
     df = df[df.Distance != -1]
     df = df[df.Distance <= 2]
 
@@ -198,7 +198,7 @@ def update_number(selectedData, map_type):
 
     elif map_type == "Emergency Phones":
         hover_data = ["Name", "Number of Emergency Phones"]
-        df = pd.read_csv('emergency_phones.csv')
+        df = pd.read_csv('./data/emergency_phones.csv')
         n_selected = df['Number of Emergency Phones'].sum()
         incident_chosen = "Total Number of Emergency Phones on Campus"
         fig = map_figure(df, hover_data, "Emergency Phones")
